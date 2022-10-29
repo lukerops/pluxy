@@ -2,33 +2,18 @@ package m3u8
 
 import (
 	"fmt"
-	"io"
 	"strings"
-	"text/template"
 )
 
-func WriteMasterPlaylist(playlist *MasterPlaylist, writer io.Writer) error {
-    tmpl := template.Must(
-        template.New("MasterPlaylist").Parse(
-            "#EXTM3U\n{{ range .Medias }}{{.}}{{end}}\n{{ range .Streams }}{{.}}{{end}}\n",
-        ),
-    )
-
-    if err := tmpl.Execute(writer, playlist); err != nil {
-        return err
-    }
-
-    return nil
-}
-
-func (stream *Stream) String() string {
-    params := []string{
-        fmt.Sprintf("PROGRAM-ID=%d", stream.ProgramID),
-        fmt.Sprintf("BANDWIDTH=%d", stream.Bandwidth),
-        fmt.Sprintf("SUBTITLES=\"%s\"", stream.Subtitles),
-    }
-
-    return fmt.Sprintf("#EXT-X-STREAM-INF:%s\n%s", strings.Join(params, ","), stream.URI)
+// #EXT-X-MEDIA
+type Media struct {
+	Type     string
+	GroupID  string
+	Name     string
+	Default  bool
+	Forced   bool
+	URI      string
+	Language string
 }
 
 func (media *Media) String() string {
@@ -58,3 +43,4 @@ func (media *Media) String() string {
 
     return fmt.Sprintf("#EXT-X-MEDIA:%s", strings.Join(params, ","))
 }
+

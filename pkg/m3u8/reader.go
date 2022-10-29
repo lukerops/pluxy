@@ -99,7 +99,7 @@ func ReadMasterPlaylist(reader io.Reader) (*MasterPlaylist, error) {
 				switch key {
 				case "PROGRAM-ID":
 					programID, _ := strconv.ParseInt(value, 10, 32)
-                    state.Stream.ProgramID = int32(programID)
+					state.Stream.ProgramID = int32(programID)
 				case "BANDWIDTH":
 					bandwidth, _ := strconv.ParseInt(value, 10, 32)
 					state.Stream.Bandwidth = int32(bandwidth)
@@ -165,19 +165,22 @@ func ReadMediaPlaylist(reader io.Reader) (*MediaPlaylist, error) {
 			state.HasM3U = true
 
 		case strings.HasPrefix(line, "#EXT-X-DISCONTINUITY-SEQUENCE:"):
-			_, err := fmt.Sscanf(line, "#EXT-X-DISCONTINUITY-SEQUENCE:%d", &playlist.DiscontinuitySeq)
+			playlist.DiscontinuitySeq = new(uint64)
+			_, err := fmt.Sscanf(line, "#EXT-X-DISCONTINUITY-SEQUENCE:%d", playlist.DiscontinuitySeq)
 			if err != nil {
 				return nil, err
 			}
 
 		case strings.HasPrefix(line, "#EXT-X-MEDIA-SEQUENCE:"):
-			_, err := fmt.Sscanf(line, "#EXT-X-MEDIA-SEQUENCE:%d", &playlist.SeqNo)
+			playlist.SeqNo = new(uint64)
+			_, err := fmt.Sscanf(line, "#EXT-X-MEDIA-SEQUENCE:%d", playlist.SeqNo)
 			if err != nil {
 				return nil, err
 			}
 
 		case strings.HasPrefix(line, "#EXT-X-TARGETDURATION:"):
-			_, err := fmt.Sscanf(line, "#EXT-X-TARGETDURATION:%f", &playlist.TargetDuration)
+			playlist.TargetDuration = new(float64)
+			_, err := fmt.Sscanf(line, "#EXT-X-TARGETDURATION:%f", playlist.TargetDuration)
 			if err != nil {
 				return nil, err
 			}
