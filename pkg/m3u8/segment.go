@@ -34,11 +34,11 @@ func (segment *Segment) String() string {
 		params = append(params, " ", segment.Name)
 	}
 
-    var outputParams []string
-    if segment.Key != nil {
-        outputParams = append(outputParams, segment.Key.String())
-    }
+	var outputParams []string
+	if segment.Key != nil {
+		outputParams = append(outputParams, segment.Key.String())
+	}
 
-    outputParams = append(outputParams, fmt.Sprintf("#EXTINF:%s\n%s", strings.Join(params, ""), segment.URI))
+	outputParams = append(outputParams, fmt.Sprintf("#EXTINF:%s\n%s", strings.Join(params, ""), segment.URI))
 	return strings.Join(outputParams, "\n")
 }
