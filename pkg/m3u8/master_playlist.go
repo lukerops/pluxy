@@ -8,15 +8,15 @@ type MasterPlaylist struct {
 }
 
 func (playlist *MasterPlaylist) String() string {
-    params := []string{"#EXTM3U"}
+	params := []string{"#EXTM3U"}
 
-    for _, media := range playlist.Medias {
-        params = append(params, media.String())
-    }
+	for _, media := range playlist.Medias {
+		params = append(params, media.String())
+	}
 
-    for _, stream := range playlist.Streams {
-        params = append(params, stream.String())
-    }
+	for _, stream := range playlist.Streams {
+		params = append(params, stream.String())
+	}
 
-    return strings.Join(params, "\n")
+	return strings.Join(params, "\n")
 }

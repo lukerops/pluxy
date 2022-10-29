@@ -15,30 +15,30 @@ type MediaPlaylist struct {
 }
 
 func (playlist *MediaPlaylist) String() string {
-    params := []string{"#EXTM3U"}
+	params := []string{"#EXTM3U"}
 
-    if playlist.SeqNo != nil {
-        params = append(params, fmt.Sprintf("#EXT-X-MEDIA-SEQUENCE:%d", *playlist.SeqNo))
-    }
+	if playlist.SeqNo != nil {
+		params = append(params, fmt.Sprintf("#EXT-X-MEDIA-SEQUENCE:%d", *playlist.SeqNo))
+	}
 
-    if playlist.DiscontinuitySeq != nil {
-        params = append(params, fmt.Sprintf("#EXT-X-DISCONTINUITY-SEQUENCE:%d", *playlist.DiscontinuitySeq))
-    }
+	if playlist.DiscontinuitySeq != nil {
+		params = append(params, fmt.Sprintf("#EXT-X-DISCONTINUITY-SEQUENCE:%d", *playlist.DiscontinuitySeq))
+	}
 
-    if playlist.TargetDuration != nil {
-        params = append(params, fmt.Sprintf("#EXT-X-TARGETDURATION:%f", *playlist.TargetDuration))
-    }
+	if playlist.TargetDuration != nil {
+		params = append(params, fmt.Sprintf("#EXT-X-TARGETDURATION:%f", *playlist.TargetDuration))
+	}
 
-    if playlist.ProgramDateTime != nil {
-        params = append(params, fmt.Sprintf(
-            "#EXT-X-PROGRAM-DATE-TIME:%s",
-            playlist.ProgramDateTime.Format("2006-01-02T15:04:05.000Z"),
-        ))
-    }
+	if playlist.ProgramDateTime != nil {
+		params = append(params, fmt.Sprintf(
+			"#EXT-X-PROGRAM-DATE-TIME:%s",
+			playlist.ProgramDateTime.Format("2006-01-02T15:04:05.000Z"),
+		))
+	}
 
-    for _, segment := range playlist.Segments {
-        params = append(params, segment.String())
-    }
+	for _, segment := range playlist.Segments {
+		params = append(params, segment.String())
+	}
 
-    return strings.Join(params, "\n")
+	return strings.Join(params, "\n")
 }

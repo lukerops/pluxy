@@ -13,11 +13,11 @@ type Key struct {
 }
 
 func (key *Key) String() string {
-    params := []string{
-        fmt.Sprintf("METHOD=%s", key.Method),
-        fmt.Sprintf("URI=\"%s\"", key.URI),
-        fmt.Sprintf("IV=%s", key.IV),
-    }
+	params := []string{
+		fmt.Sprintf("METHOD=%s", key.Method),
+		fmt.Sprintf("URI=\"%s\"", key.URI),
+		fmt.Sprintf("IV=%s", key.IV),
+	}
 
-    return fmt.Sprintf("#EXT-X-KEY:%s", strings.Join(params, ","))
+	return fmt.Sprintf("#EXT-X-KEY:%s", strings.Join(params, ","))
 }

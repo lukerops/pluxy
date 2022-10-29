@@ -14,11 +14,11 @@ type Stream struct {
 }
 
 func (stream *Stream) String() string {
-    params := []string{
-        fmt.Sprintf("PROGRAM-ID=%d", stream.ProgramID),
-        fmt.Sprintf("BANDWIDTH=%d", stream.Bandwidth),
-        fmt.Sprintf("SUBTITLES=\"%s\"", stream.Subtitles),
-    }
+	params := []string{
+		fmt.Sprintf("PROGRAM-ID=%d", stream.ProgramID),
+		fmt.Sprintf("BANDWIDTH=%d", stream.Bandwidth),
+		fmt.Sprintf("SUBTITLES=\"%s\"", stream.Subtitles),
+	}
 
-    return fmt.Sprintf("#EXT-X-STREAM-INF:%s\n%s", strings.Join(params, ","), stream.URI)
+	return fmt.Sprintf("#EXT-X-STREAM-INF:%s\n%s", strings.Join(params, ","), stream.URI)
 }
