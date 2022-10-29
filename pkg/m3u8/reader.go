@@ -29,9 +29,8 @@ func getLineParams(line string) map[string]string {
 }
 
 type readMasterState struct {
-	HasM3U       bool
-	StreamMedias []*Media
-	StreamOption *Stream
+	HasM3U bool
+	Stream *Stream
 }
 
 func ReadMasterPlaylist(reader io.Reader) (*MasterPlaylist, error) {
@@ -90,28 +89,22 @@ func ReadMasterPlaylist(reader io.Reader) (*MasterPlaylist, error) {
 				}
 			}
 
-			state.StreamMedias = append(state.StreamMedias, media)
+			playlist.Medias = append(playlist.Medias, media)
 
 		case strings.HasPrefix(line, "#EXT-X-STREAM-INF:"):
-			state.StreamOption = new(Stream)
+			state.Stream = new(Stream)
 
 			params := getLineParams(line)
 			for key, value := range params {
 				switch key {
 				case "PROGRAM-ID":
 					programID, _ := strconv.ParseInt(value, 10, 32)
-					state.StreamOption.ProgramID = int32(programID)
+                    state.Stream.ProgramID = int32(programID)
 				case "BANDWIDTH":
 					bandwidth, _ := strconv.ParseInt(value, 10, 32)
-					state.StreamOption.Bandwidth = int32(bandwidth)
+					state.Stream.Bandwidth = int32(bandwidth)
 				case "SUBTITLES":
-					state.StreamOption.Subtitles = value
-					for _, media := range state.StreamMedias {
-						if media.GroupID == state.StreamOption.Subtitles {
-							state.StreamOption.StreamMedias = append(state.StreamOption.StreamMedias, media)
-						}
-					}
-
+					state.Stream.Subtitles = value
 				default:
 					fmt.Println("Invalid #EXT-X-STREAM-INF param; key:", key)
 				}
@@ -125,13 +118,13 @@ func ReadMasterPlaylist(reader io.Reader) (*MasterPlaylist, error) {
 				continue
 			}
 
-			if state.StreamOption == nil {
+			if state.Stream == nil {
 				fmt.Println("Invalid URL Position")
 			}
 
-			state.StreamOption.URI = line
-			playlist.StreamOptions = append(playlist.StreamOptions, state.StreamOption)
-			state.StreamOption = nil
+			state.Stream.URI = line
+			playlist.Streams = append(playlist.Streams, state.Stream)
+			state.Stream = nil
 		}
 	}
 

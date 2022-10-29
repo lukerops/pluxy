@@ -5,7 +5,8 @@ import (
 )
 
 type MasterPlaylist struct {
-	StreamOptions []*Stream //#EXT-X-STREAM-INF
+	Streams []*Stream // #EXT-X-STREAM-INF
+    Medias []*Media // #EXT-X-MEDIA
 }
 
 // #EXT-X-STREAM-INF
@@ -14,7 +15,6 @@ type Stream struct {
 	ProgramID    int32
 	Bandwidth    int32
 	Subtitles    string
-	StreamMedias []*Media
 }
 
 // #EXT-X-MEDIA
