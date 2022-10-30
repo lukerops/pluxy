@@ -25,5 +25,19 @@ func main() {
 	app.Get("/", handlers.Index)
 	app.Get("/channels/:channel/master.m3u8", handlers.GetChannelPlaylist)
 
+	serverShutdown := make(chan os.Signal, 1)
+	signal.Notify(serverShutdown, os.Interrupt)
+
+	go func() {
+		<-serverShutdown
+		fmt.Println("Gracefully shutting down...")
+		app.Shutdown()
+	}()
+
 	app.Listen(":8080")
+
+	// Finalizando o servidor
+	if err := segmentmanager.SegmentManager.Stop(); err != nil {
+		fmt.Println("Failed to stop SegmentManager; err:", err.Error())
+	}
 }
