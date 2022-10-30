@@ -3,25 +3,22 @@ package downloader
 import (
 	"context"
 	"net/http"
-
-	"github.com/lukerops/pluxy/pkg/m3u8"
 )
 
-type httpClient interface {
-	Do(r *http.Request) (*http.Response, error)
-}
-
 type Downloader interface {
-	DownloadFile(context.Context, string) ([]byte, error)
-	DownloadSegment(context.Context, *m3u8.Segment, string) error
+	Run(ctx context.Context)
 }
 
 type downloader struct {
-	client httpClient
+	client     *http.Client
+	channelURL string
+	channelID  string
 }
 
-func NewDownloader(client httpClient) Downloader {
+func NewDownloader(channelID, channelURL string) Downloader {
 	return &downloader{
-		client: client,
+		client:     &http.Client{},
+		channelID:  channelID,
+		channelURL: channelURL,
 	}
 }

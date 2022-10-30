@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func (d *downloader) DownloadFile(ctx context.Context, url string) ([]byte, error) {
+func (d *downloader) downloadFile(ctx context.Context, url string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
