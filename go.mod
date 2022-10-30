@@ -2,7 +2,10 @@ module github.com/lukerops/pluxy
 
 go 1.19
 
-require github.com/gofiber/fiber/v2 v2.39.0
+require (
+	github.com/gofiber/fiber/v2 v2.39.0
+	github.com/gofrs/uuid v4.3.0+incompatible
+)
 
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
