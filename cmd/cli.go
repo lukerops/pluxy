@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -13,8 +12,9 @@ import (
 )
 
 func init() {
-	down := downloader.NewDownloader("", "")
-	go down.Run(context.Background())
+	plutoTx := make(chan string)
+	plutoRx := make(chan string)
+	downloader.NewDownloader().Run(plutoRx, plutoTx)
 }
 
 func main() {
