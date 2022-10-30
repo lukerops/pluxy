@@ -88,6 +88,6 @@ func (d *downloader) runMediaPlaylist(ctx context.Context, streamURL string) {
 			segmentmanager.SegmentManager.Add(d.channelID, segment.URI, segment.Duration, segData)
 		}
 
-		time.Sleep(time.Second)
+		time.Sleep(time.Duration(playlist.Segments[0].Duration) * time.Second)
 	}
 }
