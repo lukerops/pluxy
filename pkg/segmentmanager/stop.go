@@ -5,5 +5,5 @@ import "os"
 func (sm *segmentManager) Stop() error {
 	sm.mutex.Lock()
 
-	return os.RemoveAll(sm.dir)
+	return os.RemoveAll(sm.Dir)
 }

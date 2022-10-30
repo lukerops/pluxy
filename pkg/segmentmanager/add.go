@@ -25,7 +25,7 @@ func (sm *segmentManager) Add(channelID, segmentURI string, duration float64, da
 		return err
 	}
 
-	filename := fmt.Sprintf("%s/%s_%s.ts", sm.dir, channelID, id)
+	filename := fmt.Sprintf("%s/%s_%s.ts", sm.Dir, channelID, id)
 	if err := os.WriteFile(filename, data, 0744); err != nil {
 		return err
 	}

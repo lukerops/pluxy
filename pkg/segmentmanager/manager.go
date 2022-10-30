@@ -16,7 +16,7 @@ type segmentManager struct {
 	maxSegments int
 	index       map[string][]segmentInfo
 	mutex       sync.RWMutex
-	dir         string
+	Dir         string
 }
 
 var SegmentManager *segmentManager
@@ -34,7 +34,7 @@ func init() {
 
 	SegmentManager = &segmentManager{
 		maxSegments: int(maxSegments),
-		dir:         tmpDir,
+		Dir:         tmpDir,
 		index:       make(map[string][]segmentInfo, 0),
 	}
 }
