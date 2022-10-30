@@ -1,14 +1,29 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/lukerops/pluxy/cmd/handlers"
+	"github.com/lukerops/pluxy/pkg/downloader"
+	"github.com/lukerops/pluxy/pkg/segmentmanager"
 )
+
+func init() {
+	down := downloader.NewDownloader("", "")
+	go down.Run(context.Background())
+}
 
 func main() {
 	app := fiber.New()
 
+	app.Static("/segments", segmentmanager.SegmentManager.Dir)
+
 	app.Get("/", handlers.Index)
+	app.Get("/channels/:channel/master.m3u8", handlers.GetChannelPlaylist)
 
 	app.Listen(":8080")
 }
