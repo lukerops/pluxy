@@ -2,173 +2,193 @@ package downloader
 
 import (
 	"bytes"
-	"context"
-	"fmt"
+	"net/http"
 	"net/url"
 	"sort"
-	"strings"
 
+	"github.com/lukerops/pluxy/pkg/bus"
+	"github.com/lukerops/pluxy/pkg/commands"
 	"github.com/lukerops/pluxy/pkg/m3u8"
 	"github.com/rs/zerolog/log"
 )
 
-func (d *downloader) masterPlaylistWorker(plutoChTx, workerChTx chan<- string, plutoChRx, workerChRx <-chan string) {
-	logger := log.With().Str("module", "downloader").Str("worker", "masterPlaylist").Logger()
+type masterPlaylist struct {
+	chRx         <-chan commands.Command
+	chTx         chan<- commands.Command
+	channels     map[string]*url.URL
+	channelsHold map[string]string
 
-	channels := make(map[string]*url.URL)
-	internalCh := make(chan string, 2)
+	httpDownloader *httpDownloader
+}
+
+func NewMasterPlaylistWorker(httpClient *http.Client) bus.Handler {
+	return &masterPlaylist{
+		httpDownloader: &httpDownloader{
+			client: httpClient,
+		},
+        channels: make(map[string]*url.URL),
+        channelsHold: make(map[string]string),
+	}
+}
+
+func (mp *masterPlaylist) Run(tx chan<- commands.Command, rx <-chan commands.Command) {
+	mp.chTx = tx
+	mp.chRx = rx
+
+	go mp.run()
+}
+
+func (mp *masterPlaylist) run() {
+	logger := log.With().Str("module", "MasterPlaylist").Logger()
+
+	logger.Info().Msg("Starting MasterPlaylist")
 
 	for {
-		select {
-		case <-d.masterPlaylistStopCh:
+		cmd := <-mp.chRx
+
+		if cmd.Cmd == commands.CommandStop {
 			return
+		}
 
-		case msg := <-plutoChRx:
-			logger.Info().Str("msg", msg).Msg("chegou uma mensagem")
-			params := strings.Split(msg, ":::")
+		switch cmd.To {
+		case commands.ToMasterPlaylist:
+			masterCmd := commands.MasterPlaylist(cmd)
+			mp.processMasterCommand(masterCmd)
 
-			switch {
-			// REGISTER:::{CHANNEL ID}
-			case strings.HasPrefix(msg, "REGISTER"):
-				if len(params) != 2 {
-					logger.Error().Str("command", msg).Msg("invalid command")
-					// plutoChTx <- fmt.Sprintf("RESPONSE:::REGISTER:::%s:::FAILED")
-				}
+		case commands.ToPluto:
+			plutoCmd := commands.Pluto(cmd)
+			mp.processPlutoCommand(plutoCmd)
 
-				channels[params[1]] = nil
-				workerChTx <- msg
+		case commands.ToMediaPlaylist:
+			mediaCmd := commands.MediaPlaylist(cmd)
+			mp.processMediaCommand(mediaCmd)
+		}
+	}
+}
 
-			// RESPONSE:::GETURL:::{CHANNEL ID}:::{RESPONSE}
-			case strings.HasPrefix(msg, "RESPONSE:::GETURL"):
-				if len(params) != 4 {
-					logger.Error().Str("command", msg).Msg("invalid command")
-				}
+func (mp *masterPlaylist) processMediaCommand(cmd commands.MediaPlaylist) {
+	if cmd.Command().IsRequest() {
+		return
+	}
 
-				if params[3] == "FAILED" {
-					plutoChTx <- fmt.Sprintf("GETURL:::%s", params[2])
-					continue
-				}
+	if !cmd.IsRegister() {
+		return
+	}
 
-				channelURL, err := url.Parse(params[3])
-				if err != nil {
-					logger.Error().Stack().Err(err).Str("command", msg).
-						Msg("parse channel url failed")
-					plutoChTx <- fmt.Sprintf("GETURL:::%s", params[2])
-					continue
-				}
+	params := cmd.GetParams()
+	channelID := params[0]
+	reqFrom := mp.channelsHold[channelID]
 
-				channels[params[2]] = channelURL
-				internalCh <- fmt.Sprintf("DOWNLOAD:::%s", params[2])
+	delete(mp.channelsHold, channelID)
+
+	if cmd.Response == commands.ResponseFail {
+		mp.chTx <- commands.NewMasterPlaylistResponse(reqFrom, commands.ResponseFail).Command()
+	}
+
+	mp.channels[channelID] = nil
+	mp.chTx <- commands.NewMasterPlaylistResponse(reqFrom, commands.ResponseOK).Command()
+}
+
+func (mp *masterPlaylist) processPlutoCommand(cmd commands.Pluto) {
+	if cmd.Command().IsRequest() {
+		return
+	}
+
+	if !cmd.IsGetURL() {
+		return
+	}
+
+	params := cmd.GetParams()
+	channelID := params[0]
+
+	if cmd.Response == commands.ResponseFail {
+		mp.chTx <- commands.NewPlutoRequest(commands.ToMasterPlaylist).GetURL(channelID).Command()
+		return
+	}
+
+	channelURL, err := url.Parse(cmd.Response)
+	if err != nil {
+		mp.chTx <- commands.NewPlutoRequest(commands.ToMasterPlaylist).GetURL(channelID).Command()
+		return
+	}
+
+	mp.channels[channelID] = channelURL
+	mp.chTx <- commands.NewMasterPlaylistRequest(commands.ToMasterPlaylist).Download(channelID).Command()
+}
+
+func (mp *masterPlaylist) processMasterCommand(cmd commands.MasterPlaylist) {
+	if cmd.Command().IsResponse() {
+		return
+	}
+
+	params := cmd.GetParams()
+
+	switch {
+	case cmd.IsRegister():
+		channelID := params[0]
+
+		mp.channelsHold[channelID] = cmd.From
+		mp.chTx <- commands.NewMediaPlaylistRequest(commands.ToMasterPlaylist).Register(channelID).Command()
+
+	case cmd.IsGetURL():
+		channelID := params[0]
+
+		channelURL, ok := mp.channels[channelID]
+		if !ok {
+			mp.chTx <- commands.NewMasterPlaylistResponseFrom(cmd, commands.ResponseFail).Command()
+			return
+		}
+
+		if channelURL == nil {
+			mp.chTx <- commands.NewPlutoRequest(commands.ToMasterPlaylist).GetURL(channelID).Command()
+			return
+		}
+
+		mp.chTx <- commands.NewMasterPlaylistRequest(commands.ToMasterPlaylist).Download(channelID).Command()
+
+	case cmd.IsDownload():
+		channelID := params[0]
+
+		channelURL, ok := mp.channels[channelID]
+		if !ok {
+			mp.chTx <- commands.NewMasterPlaylistResponseFrom(cmd, commands.ResponseFail).Command()
+			return
+		}
+
+		var retryNo int
+		for retryNo = 0; retryNo < 5; retryNo += 1 {
+			rawPlaylist, err := mp.httpDownloader.DownloadFile(channelURL.String())
+			if err != nil {
+				return
 			}
 
-		case msg := <-workerChRx:
-			logger.Info().Str("msg", msg).Msg("chegou uma mensagem")
-			params := strings.Split(msg, ":::")
-
-			switch {
-			// RESPONSE:::REGISTER:::{CHANNEL ID}:::{RESULT}
-			case strings.HasPrefix(msg, "RESPONSE:::REGISTER"):
-				if len(params) != 4 {
-					logger.Error().Str("command", msg).Msg("invalid command")
-				}
-
-				if params[3] == "FAILED" {
-					delete(channels, params[2])
-				}
-
-				plutoChTx <- msg
-
-			// GETURL:::{CHANNEL ID}
-			case strings.HasPrefix(msg, "GETURL"):
-				if len(params) != 2 {
-					logger.Error().Str("command", msg).Msg("invalid command")
-				}
-
-				channelURL, ok := channels[params[1]]
-				if !ok {
-					workerChTx <- fmt.Sprintf("RESPONSE:::GETURL:::%s:::FAILED", params[1])
-					continue
-				}
-
-				if channelURL == nil {
-					internalCh <- fmt.Sprintf("GETPLUTOURL:::%s", params[1])
-					continue
-				}
-
-				internalCh <- fmt.Sprintf("DOWNLOAD:::%s", params[1])
-
-			default:
-				logger.Error().Str("command", msg).Msg("invalid command")
+			playlist, err := m3u8.ReadMasterPlaylist(bytes.NewReader(rawPlaylist))
+			if err != nil {
+				return
 			}
 
-		case msg := <-internalCh:
-			logger.Info().Str("msg", msg).Msg("chegou uma mensagem")
-			params := strings.Split(msg, ":::")
+			// ordena as streams em ordem decrescente de
+			// bandwidth, para que seja baixado a stream
+			// com a maior qualidade
+			sort.Slice(playlist.Streams, func(i, j int) bool {
+				return playlist.Streams[i].Bandwidth > playlist.Streams[j].Bandwidth
+			})
 
-			switch {
-			// DOWNLOAD:::{CHANNEL ID}
-			case strings.HasPrefix(msg, "DOWNLOAD"):
-				if len(params) != 2 {
-					logger.Error().Str("command", msg).Msg("invalid command")
-				}
-
-				channelURL, ok := channels[params[1]]
-				if !ok {
-					workerChTx <- fmt.Sprintf("RESPONSE:::GETURL:::%s:::FAILED", params[1])
-					continue
-				}
-
-				// retenta 5 vezes antes de disparar um erro
-				var retryNo int
-				for retryNo = 0; retryNo < 5; retryNo += 1 {
-					ctx := context.Background()
-
-					rawPlaylist, err := d.downloadFile(ctx, channelURL.String())
-					if err != nil {
-						logger.Error().Stack().Err(err).Str("command", msg).
-							Str("channelURL", channelURL.String()).Msg("download master playlist failed")
-						continue
-					}
-
-					playlist, err := m3u8.ReadMasterPlaylist(bytes.NewReader(rawPlaylist))
-					if err != nil {
-						logger.Error().Stack().Err(err).Str("command", msg).
-							Str("channelURL", channelURL.String()).Msg("parse master playlist failed")
-						continue
-					}
-
-					// ordena as streams em ordem decrescente de
-					// bandwidth, para que seja baixado a stream
-					// com a maior qualidade
-					sort.Slice(playlist.Streams, func(i, j int) bool {
-						return playlist.Streams[i].Bandwidth > playlist.Streams[j].Bandwidth
-					})
-
-					streamURL, err := channelURL.Parse(playlist.Streams[0].URI)
-					if err != nil {
-						logger.Error().Stack().Err(err).Str("command", msg).
-							Str("channelURL", channelURL.String()).Msg("parse stream url failed")
-						continue
-					}
-
-					// envia de volta a url da atream com maior
-					// qualidade
-					workerChTx <- fmt.Sprintf("RESPONSE:::GETURL:::%s:::%s", params[1], streamURL.String())
-					break
-				}
-
-				if retryNo == 5 {
-					workerChTx <- fmt.Sprintf("RESPONSE:::GETURL:::%s:::FAILED", params[1])
-				}
-
-			// GETPLUTOURL:::{CHANNEL ID}
-			case strings.HasPrefix(msg, "GETPLUTOURL"):
-				if len(params) != 2 {
-					logger.Error().Str("command", msg).Msg("invalid command")
-				}
-
-				plutoChTx <- fmt.Sprintf("GETURL:::%s", params[1])
+			streamURL, err := channelURL.Parse(playlist.Streams[0].URI)
+			if err != nil {
+				return
 			}
+
+			// envia de volta a url da atream com maior
+			// qualidade
+			mp.chTx <- commands.NewMasterPlaylistResponse(commands.ToMediaPlaylist, streamURL.String()).
+				GetURL(channelID).Command()
+			break
+		}
+
+		if retryNo == 5 {
+			mp.chTx <- commands.NewMasterPlaylistResponse(commands.ToMediaPlaylist, commands.ResponseFail).
+				GetURL(channelID).Command()
 		}
 	}
 }
