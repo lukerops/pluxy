@@ -47,7 +47,7 @@ func (ch *channelService) GetChannelPlaylist(channelID string) (string, error) {
 		}
 	}
 
-	playlist := m3u8.MediaPlaylist{
+	playlist := m3u8.Manifest{
 		SeqNo:    &ch.lastSeqNo,
 		Segments: segments,
 	}

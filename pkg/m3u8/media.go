@@ -5,6 +5,13 @@ import (
 	"strings"
 )
 
+func bool2String(val bool) string {
+    if val {
+        return "YES"
+    }
+    return "NO"
+}
+
 // #EXT-X-MEDIA
 type Media struct {
 	Type     string
@@ -17,26 +24,12 @@ type Media struct {
 }
 
 func (media *Media) String() string {
-	var isDefault, isForced string
-
-	if media.Default {
-		isDefault = "YES"
-	} else {
-		isDefault = "NO"
-	}
-
-	if media.Forced {
-		isForced = "YES"
-	} else {
-		isForced = "NO"
-	}
-
 	params := []string{
 		fmt.Sprintf("TYPE=%s", media.Type),
 		fmt.Sprintf("GROUP-ID=\"%s\"", media.GroupID),
 		fmt.Sprintf("NAME=\"%s\"", media.Name),
-		fmt.Sprintf("DEFAULT=%s", isDefault),
-		fmt.Sprintf("FORCED=%s", isForced),
+		fmt.Sprintf("DEFAULT=%s", bool2String(media.Default)),
+		fmt.Sprintf("FORCED=%s", bool2String(media.Forced)),
 		fmt.Sprintf("URI=\"%s\"", media.URI),
 		fmt.Sprintf("LANGUAGE=\"%s\"", media.Language),
 	}

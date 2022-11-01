@@ -1,7 +1,6 @@
 package downloader
 
 import (
-	"bytes"
 	"net/http"
 	"net/url"
 	"sort"
@@ -162,8 +161,8 @@ func (mp *masterPlaylist) processMasterCommand(cmd commands.MasterPlaylist) {
 				return
 			}
 
-			playlist, err := m3u8.ReadMasterPlaylist(bytes.NewReader(rawPlaylist))
-			if err != nil {
+			playlist, err := m3u8.ReadManifest(string(rawPlaylist))
+			if err != nil || playlist.IsMedia() {
 				return
 			}
 

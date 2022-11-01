@@ -1,7 +1,6 @@
 package downloader
 
 import (
-	"bytes"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -111,8 +110,8 @@ func (mp *mediaPlaylist) processMediaCommand(cmd commands.MediaPlaylist) {
 			break
 		}
 
-		playlist, err := m3u8.ReadMediaPlaylist(bytes.NewReader(rawPlaylist))
-		if err != nil {
+		playlist, err := m3u8.ReadManifest(string(rawPlaylist))
+		if err != nil  || playlist.IsMaster() {
 			fmt.Println("parse media playlist failed; err:", err.Error())
 			break
 		}
