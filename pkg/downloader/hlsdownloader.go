@@ -16,9 +16,10 @@ import (
 )
 
 type channelInfo struct {
-	ID       string
-	URL      *url.URL
-	Provider commands.CommandHandler
+	id         string
+	uri        *url.URL
+	provider   commands.CommandHandler
+	lastSeqNo uint64
 }
 
 type hlsDownloader struct {
@@ -27,8 +28,6 @@ type hlsDownloader struct {
 	channels map[string]*channelInfo
 
 	httpDownloader *httpDownloader
-
-	lastSeqNo uint64
 }
 
 func NewHlsDownloader(httpClient *http.Client) bus.Handler {
@@ -88,7 +87,7 @@ func (hls *hlsDownloader) processProvider(cmd commands.ProviderCmd) {
 		return
 	}
 
-	hls.channels[channelID].URL = channelURL
+	hls.channels[channelID].uri = channelURL
 	hls.chTx <- commands.NewHlsDownloaderCmd(commands.HlsDownloader).
 		DownloadPlaylist(channelID, channelURL.String()).GetCommand()
 }
@@ -103,8 +102,8 @@ func (hls *hlsDownloader) processCommand(cmd commands.HlsDownloaderCmd) {
 		channelID := cmd.RegisterParams()
 
 		hls.channels[channelID] = &channelInfo{
-			ID:       channelID,
-			Provider: cmd.From,
+			id:       channelID,
+			provider: cmd.From,
 		}
 
 		hls.chTx <- commands.NewResponseFrom(cmd.GetCommand(), commands.ResponseOK)
@@ -124,19 +123,24 @@ func (hls *hlsDownloader) processCommand(cmd commands.HlsDownloaderCmd) {
 		}
 
 		if playlist.IsMedia() {
-			if playlist.SeqNo == nil || (playlist.SeqNo != nil && *playlist.SeqNo == hls.lastSeqNo) {
-				bus.MessageBus.AddTimer(
-					time.Duration(playlist.Segments[0].Duration/2)*time.Second, cmd.GetCommand())
-				return
+			if playlist.SeqNo != nil {
+				if (*playlist.SeqNo) == hls.channels[channelID].lastSeqNo {
+					bus.MessageBus.AddTimer(
+						time.Duration(playlist.Segments[0].Duration/2)*time.Second, cmd.GetCommand())
+					return
+				}
+
+				hls.channels[channelID].lastSeqNo = (*playlist.SeqNo)
 			}
 
-			hls.lastSeqNo = *playlist.SeqNo
 			for _, segment := range playlist.Segments {
 				// filtra as propagandas
 				pattern := regexp.MustCompile(`_ad/creative/|dai\.google\.com|Pluto_TV_OandO/.*Bumper`)
 				if pattern.MatchString(segment.URI) {
 					fmt.Println("Filtering Ads; url:", segment.URI)
-					continue
+					hls.chTx <- commands.NewProviderCmd(commands.HlsDownloader, hls.channels[channelID].provider).
+						GetURL(channelID).GetCommand()
+					return
 				}
 
 				// não processa segmentos repetidos
@@ -166,7 +170,7 @@ func (hls *hlsDownloader) processCommand(cmd commands.HlsDownloaderCmd) {
 			return playlist.Streams[i].Bandwidth > playlist.Streams[j].Bandwidth
 		})
 
-		streamURL, err := hls.channels[channelID].URL.Parse(playlist.Streams[0].URI)
+		streamURL, err := hls.channels[channelID].uri.Parse(playlist.Streams[0].URI)
 		if err != nil {
 			return
 		}
@@ -182,6 +186,7 @@ func (hls *hlsDownloader) processCommand(cmd commands.HlsDownloaderCmd) {
 		segData, err := hls.httpDownloader.DownloadSegment(segmentURI, keyURI, keyIV)
 		if err != nil {
 			fmt.Println("download segment failed; err:", err.Error())
+            hls.chTx <- cmd.GetCommand()
 			return
 		}
 
