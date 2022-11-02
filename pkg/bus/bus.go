@@ -2,6 +2,7 @@ package bus
 
 import (
 	"sync"
+	"time"
 
 	"github.com/lukerops/pluxy/pkg/commands"
 )
@@ -16,10 +17,16 @@ type handlerInfo struct {
 	chTx    chan commands.Command
 }
 
+type timer struct {
+	time time.Time
+	cmd  commands.Command
+}
+
 type messageBus struct {
 	handlerInfo map[commands.CommandHandler]*handlerInfo
 	chRx        chan commands.Command
 	mutex       sync.RWMutex
+	timers      []timer
 }
 
 var MessageBus *messageBus

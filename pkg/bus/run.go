@@ -6,34 +6,37 @@ import (
 )
 
 func (bus *messageBus) Run() {
-	logger := log.With().Str("module", "bus").Logger()
-
 	// o Tx do bus é o Rx do handler
 	for _, handlerInfo := range bus.handlerInfo {
 		handlerInfo.handler.Run(bus.chRx, handlerInfo.chTx)
 	}
 
-	go func() {
-		for {
-			cmd := <-bus.chRx
+	go bus.runTimer()
+	go bus.run()
+}
 
-			bus.mutex.RLock()
-			logger.Info().Msg(cmd.String())
+func (bus *messageBus) run() {
+	logger := log.With().Str("module", "bus").Logger()
 
-			if cmd.Cmd == commands.CommandStop {
-				for _, handlerInfo := range bus.handlerInfo {
-					handlerInfo.chTx <- cmd
-				}
-				return
+	for {
+		cmd := <-bus.chRx
+
+		bus.mutex.RLock()
+		logger.Info().Msg(cmd.String())
+
+		if cmd.Cmd == commands.CommandStop {
+			for _, handlerInfo := range bus.handlerInfo {
+				handlerInfo.chTx <- cmd
 			}
-
-			sendTo := cmd.To
-			if cmd.IsResponse() {
-				sendTo = cmd.From
-			}
-
-			bus.handlerInfo[sendTo].chTx <- cmd
-			bus.mutex.RUnlock()
+			return
 		}
-	}()
+
+		sendTo := cmd.To
+		if cmd.IsResponse() {
+			sendTo = cmd.From
+		}
+
+		bus.handlerInfo[sendTo].chTx <- cmd
+		bus.mutex.RUnlock()
+	}
 }

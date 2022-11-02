@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
+	"time"
 
 	"github.com/lukerops/pluxy/pkg/bus"
 	"github.com/lukerops/pluxy/pkg/commands"
@@ -124,14 +125,15 @@ func (hls *hlsDownloader) processCommand(cmd commands.HlsDownloaderCmd) {
 
 		if playlist.IsMedia() {
 			if playlist.SeqNo == nil || (playlist.SeqNo != nil && *playlist.SeqNo == hls.lastSeqNo) {
-				hls.chTx <- cmd.GetCommand()
+				bus.MessageBus.AddTimer(
+					time.Duration(playlist.Segments[0].Duration/2)*time.Second, cmd.GetCommand())
 				return
 			}
 
 			hls.lastSeqNo = *playlist.SeqNo
 			for _, segment := range playlist.Segments {
 				// filtra as propagandas
-				pattern := regexp.MustCompile(`_ad/creative/|dai\.google\.com|Pluto_TV_OandO/`) //.*Bumper`)
+				pattern := regexp.MustCompile(`_ad/creative/|dai\.google\.com|Pluto_TV_OandO/.*Bumper`)
 				if pattern.MatchString(segment.URI) {
 					fmt.Println("Filtering Ads; url:", segment.URI)
 					continue
@@ -152,7 +154,8 @@ func (hls *hlsDownloader) processCommand(cmd commands.HlsDownloaderCmd) {
 					DownloadSegment(channelID, segment.URI, keyURI, keyIV, segment.Duration).GetCommand()
 			}
 
-			hls.chTx <- cmd.GetCommand()
+			bus.MessageBus.AddTimer(
+				time.Duration(playlist.Segments[0].Duration/2)*time.Second, cmd.GetCommand())
 			return
 		}
 
