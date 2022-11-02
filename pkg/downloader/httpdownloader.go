@@ -1,9 +1,11 @@
 package downloader
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 type httpDownloader struct {
@@ -11,7 +13,9 @@ type httpDownloader struct {
 }
 
 func (d *httpDownloader) DownloadFile(url string) ([]byte, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+    ctx, _ := context.WithTimeout(context.Background(), 15 * time.Second)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
