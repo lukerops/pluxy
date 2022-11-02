@@ -1,6 +1,15 @@
 package commands
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
+
+type CommandHandler string
+
+func (h CommandHandler) IsProvider() bool {
+	return strings.HasPrefix(string(h), "PROVIDER")
+}
 
 const (
 	ResponseOK   = "OK"
@@ -8,17 +17,22 @@ const (
 
 	CommandStop = "STOP"
 
-	ToMediaPlaylist  = "MEDIAPLAYLIST"
-	ToMasterPlaylist = "MASTERPLAYLIST"
-	ToPluto          = "PLUTO"
+	HlsDownloader CommandHandler = "HLSDOWNLOADER"
+	PlutoProvider CommandHandler = "PROVIDER:PLUTO"
 )
 
 type Command struct {
-	From       string
-	To         string
+	From       CommandHandler
+	To         CommandHandler
 	Cmd        string
 	isResponse bool
 	Response   string
+}
+
+func NewResponseFrom(cmd Command, response string) Command {
+	cmd.isResponse = true
+	cmd.Response = response
+	return cmd
 }
 
 func (cmd Command) String() string {

@@ -8,8 +8,8 @@ import (
 	"github.com/lukerops/pluxy/pkg/m3u8"
 )
 
-type httpDownloader struct{
-    client *http.Client
+type httpDownloader struct {
+	client *http.Client
 }
 
 func (d *httpDownloader) DownloadFile(url string) ([]byte, error) {

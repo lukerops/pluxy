@@ -6,18 +6,27 @@ import (
 	"github.com/lukerops/pluxy/pkg/commands"
 )
 
+type Handler interface {
+	Run(tx chan<- commands.Command, rx <-chan commands.Command)
+}
+
+type handlerInfo struct {
+	name    commands.CommandHandler
+	handler Handler
+	chTx    chan commands.Command
+}
+
 type messageBus struct {
-	chTx  map[string]chan commands.Command
-	chRx  chan commands.Command
-	mutex sync.RWMutex
+	handlerInfo map[commands.CommandHandler]*handlerInfo
+	chRx        chan commands.Command
+	mutex       sync.RWMutex
 }
 
 var MessageBus *messageBus
 
 func NewMessageBus() {
-    MessageBus = &messageBus{
-        chTx: make(map[string]chan commands.Command),
-		chRx: make(chan commands.Command, 10),
+	MessageBus = &messageBus{
+		handlerInfo: make(map[commands.CommandHandler]*handlerInfo),
+		chRx:        make(chan commands.Command, 10),
 	}
 }
-

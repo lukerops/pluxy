@@ -8,6 +8,11 @@ import (
 func (bus *messageBus) Run() {
 	logger := log.With().Str("module", "bus").Logger()
 
+	// o Tx do bus é o Rx do handler
+	for _, handlerInfo := range bus.handlerInfo {
+		handlerInfo.handler.Run(bus.chRx, handlerInfo.chTx)
+	}
+
 	go func() {
 		for {
 			cmd := <-bus.chRx
@@ -16,8 +21,8 @@ func (bus *messageBus) Run() {
 			logger.Info().Msg(cmd.String())
 
 			if cmd.Cmd == commands.CommandStop {
-				for _, ch := range bus.chTx {
-					ch <- cmd
+				for _, handlerInfo := range bus.handlerInfo {
+					handlerInfo.chTx <- cmd
 				}
 				return
 			}
@@ -27,7 +32,7 @@ func (bus *messageBus) Run() {
 				sendTo = cmd.From
 			}
 
-			bus.chTx[sendTo] <- cmd
+			bus.handlerInfo[sendTo].chTx <- cmd
 			bus.mutex.RUnlock()
 		}
 	}()
