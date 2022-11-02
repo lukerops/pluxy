@@ -28,7 +28,6 @@ type hlsDownloader struct {
 	httpDownloader *httpDownloader
 
 	lastSeqNo uint64
-	segments  []*m3u8.Segment
 }
 
 func NewHlsDownloader(httpClient *http.Client) bus.Handler {
@@ -143,14 +142,14 @@ func (hls *hlsDownloader) processCommand(cmd commands.HlsDownloaderCmd) {
 					continue
 				}
 
-				// key := ":::"
-				// if segment.Key != nil {
-				//     key = fmt.Sprintf("%s:::%s", segment.Key.URI, segment.Key.IV)
-				// }
+				var keyURI, keyIV string
+				if segment.Key != nil {
+					keyURI = segment.Key.URI
+					keyIV = segment.Key.IV
+				}
 
-				hls.segments = append(hls.segments, segment)
 				hls.chTx <- commands.NewHlsDownloaderCmd(commands.HlsDownloader).
-					DownloadSegment(channelID, len(hls.segments)-1).GetCommand()
+					DownloadSegment(channelID, segment.URI, keyURI, keyIV, segment.Duration).GetCommand()
 			}
 
 			hls.chTx <- cmd.GetCommand()
@@ -173,17 +172,16 @@ func (hls *hlsDownloader) processCommand(cmd commands.HlsDownloaderCmd) {
 			DownloadPlaylist(channelID, streamURL.String()).GetCommand()
 
 	case cmd.IsDownloadSegment():
-		channelID, segmentIndex := cmd.DownloadSegmentParams()
-		segment := hls.segments[segmentIndex]
+		channelID, segmentURI, keyURI, keyIV, segmentDuration := cmd.DownloadSegmentParams()
 
-		fmt.Println("Downloading segment:", segment.URI)
+		fmt.Println("Downloading segment:", segmentURI)
 
-		segData, err := hls.httpDownloader.DownloadSegment(segment)
+		segData, err := hls.httpDownloader.DownloadSegment(segmentURI, keyURI, keyIV)
 		if err != nil {
 			fmt.Println("download segment failed; err:", err.Error())
 			return
 		}
 
-		segmentmanager.SegmentManager.Add(channelID, segment.URI, segment.Duration, segData)
+		segmentmanager.SegmentManager.Add(channelID, segmentURI, segmentDuration, segData)
 	}
 }

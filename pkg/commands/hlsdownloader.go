@@ -71,15 +71,17 @@ func (cmd HlsDownloaderCmd) IsDownloadPlaylist() bool {
 	return strings.HasPrefix(cmd.Cmd, "DOWNLOAD:::PLAYLIST")
 }
 
-func (cmd HlsDownloaderCmd) DownloadSegment(channelID string, segmentIndex int) HlsDownloaderCmd {
-	cmd.Cmd = fmt.Sprintf("DOWNLOAD:::SEGMENT:::%s:::%d", channelID, segmentIndex)
+func (cmd HlsDownloaderCmd) DownloadSegment(channelID, segmentURL, keyURL, keyIV string, segmentDuration float64) HlsDownloaderCmd {
+	cmd.Cmd = fmt.Sprintf(
+		"DOWNLOAD:::SEGMENT:::%s:::%s:::%s:::%s:::%f",
+		channelID, segmentURL, keyURL, keyIV, segmentDuration)
 	return cmd
 }
 
-func (cmd HlsDownloaderCmd) DownloadSegmentParams() (channelID string, segmentIndex int) {
+func (cmd HlsDownloaderCmd) DownloadSegmentParams() (channelID, segmentURL, keyURL, keyIV string, segmentDuration float64) {
 	params := strings.Split(cmd.Cmd, ":::")
-	index, _ := strconv.ParseInt(params[3], 10, 32)
-	return params[2], int(index)
+	duration, _ := strconv.ParseFloat(params[6], 64)
+	return params[2], params[3], params[4], params[5], duration
 }
 
 func (cmd HlsDownloaderCmd) IsDownloadSegment() bool {

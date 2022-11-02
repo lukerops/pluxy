@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-
-	"github.com/lukerops/pluxy/pkg/m3u8"
 )
 
 type httpDownloader struct {
@@ -35,20 +33,20 @@ func (d *httpDownloader) DownloadFile(url string) ([]byte, error) {
 	return io.ReadAll(response.Body)
 }
 
-func (d *httpDownloader) DownloadSegment(segment *m3u8.Segment) ([]byte, error) {
-	segData, err := d.DownloadFile(segment.URI)
+func (d *httpDownloader) DownloadSegment(segmentURI, keyURI, keyIV string) ([]byte, error) {
+	segData, err := d.DownloadFile(segmentURI)
 	if err != nil {
 		return nil, err
 	}
 
-	if segment.Key != nil {
-		keyData, err := d.DownloadFile(segment.Key.URI)
+	if len(keyURI) > 0 {
+		keyData, err := d.DownloadFile(keyURI)
 		if err != nil {
 			return nil, err
 		}
 
 		// Remove o 0x
-		iv := segment.Key.IV[2:]
+		iv := keyIV[2:]
 
 		segData, err = decryptAesCBC(segData, keyData, []byte(iv))
 		if err != nil {
