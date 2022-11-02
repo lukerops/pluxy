@@ -6,10 +6,10 @@ import (
 )
 
 func bool2String(val bool) string {
-    if val {
-        return "YES"
-    }
-    return "NO"
+	if val {
+		return "YES"
+	}
+	return "NO"
 }
 
 // #EXT-X-MEDIA

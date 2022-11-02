@@ -36,17 +36,17 @@ type state struct {
 }
 
 func ReadManifest(text string) (*Manifest, error) {
-    isMaster, err := regexp.MatchString(`(MEDIA:|STREAM-INF:)`, text)
-    if err != nil {
-        return nil, err
-    }
+	isMaster, err := regexp.MatchString(`(MEDIA:|STREAM-INF:)`, text)
+	if err != nil {
+		return nil, err
+	}
 
-    manifestReader := readMasterManifest
-    if !isMaster {
-        manifestReader = readMediaManifest
-    }
+	manifestReader := readMasterManifest
+	if !isMaster {
+		manifestReader = readMediaManifest
+	}
 
-    var buf bytes.Buffer
+	var buf bytes.Buffer
 	_, err = buf.ReadFrom(strings.NewReader(text))
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func ReadManifest(text string) (*Manifest, error) {
 
 		line = strings.Replace(line, "\n", "", 1)
 		manifestReader(line, state, manifest)
-    }
+	}
 
 	if !state.hasM3U {
 		return nil, errors.New("invalid M3U file")
